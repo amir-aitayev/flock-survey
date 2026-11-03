@@ -11,10 +11,13 @@ const params = new URLSearchParams(location.search);
 const SOURCE = (params.get('s') || params.get('utm_source') || '').slice(0, 40) || null;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fine = matchMedia('(pointer: fine)').matches;
+const SEND_TIMEOUT = 7000;
+const RETRY_WAITS = [1000, 2000];
 
 let state = load() || fresh();
 let busy = false;
 let inflight = Promise.resolve();
+let pushQueued = false;
 let swapToken = 0;
 let autoTimer = 0;
 let prevPct = 0;
@@ -52,7 +55,11 @@ function fresh(lang) {
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
-    return s && s.id ? s : null;
+    if (!s?.id || !s.answers || typeof s.answers !== 'object') return null;
+    // A saved position can outlive the question it pointed at: restart from the
+    // welcome screen, answers kept, instead of drawing nothing.
+    if (!QUESTIONS[s.at]) s.at = -1;
+    return s;
   } catch {
     return null;
   }
@@ -117,6 +124,7 @@ function valid(q) {
 function go(i, dir, fromHistory = false) {
   clearTimeout(autoTimer);
   state.at = i;
+  state.unsent = false; // moved on from the screen that was sending
   if (i >= 0) state.reached = Math.max(state.reached, i + 1);
   save();
   if (dir > 0 && !fromHistory) history.pushState({ at: i }, '');
@@ -223,37 +231,72 @@ function cleanAnswers() {
   return out;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Every request gets a deadline: on a bad signal fetch can otherwise wait forever.
 async function send(completed) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_survey`, {
-    method: 'POST',
-    keepalive: true,
-    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      p_id: state.id,
-      p_survey: SURVEY_ID,
-      p_lang: state.lang,
-      p_answers: cleanAnswers(),
-      p_step: state.reached,
-      p_completed: completed,
-      p_source: SOURCE,
-      p_device: device(),
-    }),
-  });
-  if (!res.ok) throw new Error(`submit_survey ${res.status}`);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SEND_TIMEOUT);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_survey`, {
+      method: 'POST',
+      keepalive: true,
+      signal: ctrl.signal,
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_id: state.id,
+        p_survey: SURVEY_ID,
+        p_lang: state.lang,
+        p_answers: cleanAnswers(),
+        p_step: state.reached,
+        p_completed: completed,
+        p_source: SOURCE,
+        p_device: device(),
+      }),
+    });
+    if (!res.ok) throw Object.assign(new Error(`submit_survey ${res.status}`), { status: res.status });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-// Progress is best effort; the final send is the one that has to land.
+// The final send tries again on its own: the row is keyed by respondent, so a
+// repeat is harmless. A request the server rejects won't improve with retrying.
+async function sendFinal() {
+  for (const wait of RETRY_WAITS) {
+    try {
+      return await send(true);
+    } catch (e) {
+      if (e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429) throw e;
+      await sleep(wait);
+    }
+  }
+  return send(true);
+}
+
+// Progress is best effort, one at a time so an older snapshot can't overwrite a
+// newer one. A send that's already waiting picks up the latest answers when it runs.
 function push() {
-  inflight = send(false).catch(() => {});
+  if (pushQueued) return;
+  pushQueued = true;
+  inflight = inflight
+    .then(() => {
+      pushQueued = false;
+      return send(false);
+    })
+    .catch(() => {});
 }
 
 async function finish() {
   if (busy) return;
   busy = true;
+  state.unsent = true; // survives a closed tab; retried on the next visit
+  save();
   paintFoot();
   try {
-    await inflight;
-    await send(true);
+    await Promise.race([inflight, sleep(SEND_TIMEOUT)]);
+    await sendFinal();
+    state.unsent = false;
     if (state.bonus) {
       state.bonusDone = true;
     } else {
@@ -612,8 +655,13 @@ app.addEventListener('click', (e) => {
       navigator.share({ title: 'Flock', text: t(UI.shareText), url: shareUrl() }).catch(() => {});
       break;
     case 'copy':
+      // In-app browsers (Instagram, for one) may have no clipboard: show the link instead.
+      if (!navigator.clipboard) {
+        toast(shareUrl());
+        break;
+      }
       navigator.clipboard
-        ?.writeText(shareUrl())
+        .writeText(shareUrl())
         .then(() => toast(t(UI.copied)))
         .catch(() => toast(shareUrl()));
       break;
@@ -698,4 +746,10 @@ addEventListener('popstate', () => {
   if (!onDone() && state.at >= 0) back(true);
 });
 
+// Answers that couldn't be sent go out as soon as the connection or the person returns.
+addEventListener('online', () => {
+  if (state.unsent) finish();
+});
+
 render(1);
+if (state.unsent) finish();

@@ -13,9 +13,25 @@
 <link rel="icon" href="flock-mark.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+<!-- Loaded without blocking, so a slow font server can't hold up the survey -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="styles.css">
-<script type="module" src="app.js"></script>
+<script>
+  // Last resort: if the survey can't start, offer a clean restart, never a blank page.
+  function flockRescue() {
+    var app = document.getElementById('app');
+    if (!app || app.querySelector('.screen') || app.querySelector('#rescue')) return;
+    app.innerHTML = '<div id="rescue" style="padding:32px 24px;font-family:system-ui,sans-serif;line-height:1.5">' +
+      '<p>Something went wrong loading the survey.<br>Il sondaggio non si è caricato correttamente.</p>' +
+      '<button style="margin-top:16px;padding:12px 20px;font:inherit">Try again / Riprova</button></div>';
+    app.querySelector('button').onclick = function () {
+      try { localStorage.clear(); } catch (e) {}
+      location.reload();
+    };
+  }
+  addEventListener('error', function () { setTimeout(flockRescue, 300); });
+</script>
+<script type="module" src="app.js" onerror="flockRescue()"></script>
 </head>
 <body>
 <div id="app" class="app"></div>

@@ -60,6 +60,8 @@ export const QUESTIONS = [
       { v: 'groceries', en: 'Shared groceries or supplies', it: 'Spesa e scorte comuni', icon: 'cart', tone: 'money' },
       { v: 'noise', en: 'Noise or guests', it: 'Rumore o ospiti', icon: 'moon', tone: 'quiet' },
       { v: 'language', en: 'Language or misunderstandings', it: 'Lingua o malintesi', icon: 'chat', tone: 'chat' },
+      { v: 'other', en: 'Something else', it: 'Altro', icon: 'note', tone: 'quiet',
+        follow: { id: 'tensions_other', en: 'What was it? Write it in your own words.', it: "Cos'è stato? Scrivilo con parole tue." } },
       { v: 'nothing', en: 'Nothing, all good', it: 'Niente, tutto bene', icon: 'check', tone: 'neutral', exclusive: true },
     ],
   },

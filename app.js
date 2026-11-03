@@ -356,7 +356,7 @@ function welcomeView() {
       <div class="quote callout st" style="--i:4">${icon('chat', 20)}<span>${esc(t(UI.welcomeHonest))}</span></div>
       <div class="pills st" style="--i:5">${pill('clock', t(UI.minutes), 'cleaning')}${pill('check', t(UI.anonymous), 'chat')}${pill('globe', 'EN · IT', 'laundry')}</div>
     </div>
-    <div class="foot st" style="--i:6">
+    <div class="foot">
       <button class="btn primary" data-act="start">${t(state.reached > 0 ? UI.resume : UI.start)}${icon('arrow', 20, 'go')}</button>
       ${enterHint()}
       <p class="privacy footnote">${esc(t(UI.privacy))}</p>
@@ -496,7 +496,7 @@ function doneView() {
       ${state.bonusDone ? `<p class="badge subhead st" style="--i:3">${icon('sparkle')}${esc(t(UI.bonusDone))}</p>` : ''}
       ${state.out || state.bonusDone ? '' : `<button class="bonus-card st" style="--i:4" data-act="bonus"><span class="oi">${icon('sparkle', 22)}</span><span class="bc"><b>${esc(t(UI.bonusTitle))}</b><span class="footnote">${esc(t(UI.bonusBody))}</span></span>${icon('arrow', 20, 'go')}</button>`}
     </div>
-    <div class="foot st" style="--i:5">
+    <div class="foot">
       <button class="btn primary" data-act="wa">${icon('chat', 20)}${t(UI.whatsapp)}</button>
       <button class="btn secondary" data-act="${navigator.share ? 'share' : 'copy'}">${icon(navigator.share ? 'send' : 'note', 20)}${t(navigator.share ? UI.share : UI.copy)}</button>
       <button class="linkbtn footnote" data-act="again">${t(UI.again)}</button>
@@ -520,7 +520,7 @@ function render(dir = 0) {
 function draw(dir, moved) {
   document.documentElement.lang = state.lang;
   const q = !onDone() && state.at >= 0 ? current() : null;
-  app.className = `app acc-${q ? LOOK[q.id][1] : 'chat'}`;
+  app.className = `app acc-${q ? LOOK[q.id][1] : 'chat'}${!onDone() && state.at < 0 ? ' at-welcome' : ''}`;
   if (moved) {
     lastPicked = null;
     lastPeople = 0;

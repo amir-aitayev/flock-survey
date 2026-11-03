@@ -257,7 +257,14 @@ input.field { height: 58px; border-radius: var(--r-field); }
 .concept .c { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: var(--r-card); font: 600 15px/19px Inter, sans-serif; background: var(--tt); color: var(--tx); }
 .screen.enter .concept .c { animation: pop-in 560ms var(--spring) both; animation-delay: calc(120ms + var(--k) * 70ms); }
 
-/* Welcome */
+/* Welcome: fits one screen on any phone. The birds take whatever height is left,
+   and what's already said elsewhere gives way first on short screens. */
+.app.at-welcome { height: 100vh; height: 100dvh; }
+.welcome { flex: 1 1 auto; display: flex; flex-direction: column; }
+.welcome .hero { flex: 1 1 0; height: auto; min-height: 64px; max-height: 250px; grid-template-rows: minmax(0, 1fr); }
+.welcome .formation { height: 100%; width: auto; max-height: 230px; }
+@media (max-height: 800px) { .welcome .pills { display: none; } }
+@media (max-height: 640px) { .welcome .quote { display: none; } }
 .hero { position: relative; height: 250px; margin: 4px calc(var(--gutter) * -1) 8px; display: grid; place-items: center; }
 .blob { position: absolute; border-radius: 50%; filter: blur(42px); opacity: 0.75; animation: drift 14s ease-in-out infinite alternate; }
 .blob.b1 { width: 210px; height: 210px; background: var(--chat-tint); left: 8%; top: 10px; }

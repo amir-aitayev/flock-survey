@@ -1,0 +1,35 @@
+# Every two days: checks the survey can reach its database, which also counts as
+# activity so a free Supabase project doesn't pause. A failed run emails the repo owner.
+name: Survey health check
+on:
+  schedule:
+    - cron: '17 6 */2 * *'
+  workflow_dispatch:
+permissions:
+  actions: write # to re-enable this schedule, which GitHub stops after 60 idle days
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Page is up
+        run: curl -fsS -m 30 --retry 3 --retry-all-errors https://amir-aitayev.github.io/flock-survey/ -o /dev/null
+      - name: Database answers
+        # A deliberately invalid survey id: runs the function, writes nothing.
+        run: |
+          KEY=$(sed -n "s/.*SUPABASE_KEY = '\(.*\)'.*/\1/p" config.js)
+          URL=$(sed -n "s/.*SUPABASE_URL = '\(.*\)'.*/\1/p" config.js)
+          BAD=$(printf 'x%.0s' $(seq 50))
+          for i in 1 2 3; do
+            OUT=$(curl -sS -m 30 -X POST "$URL/rest/v1/rpc/submit_survey" -H "apikey: $KEY" -H 'Content-Type: application/json' \
+              -d "{\"p_id\":\"00000000-0000-4000-8000-000000000000\",\"p_survey\":\"$BAD\",\"p_lang\":\"en\",\"p_answers\":{},\"p_step\":0}" || true)
+            if echo "$OUT" | grep -q 'invalid survey'; then echo "database OK"; exit 0; fi
+            echo "attempt $i: $OUT"; sleep 30
+          done
+          exit 1
+      - name: Keep this schedule on
+        run: gh workflow enable keep-alive.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

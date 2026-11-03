@@ -1,7 +1,7 @@
 // Flock survey: one question per screen, answers kept in localStorage and sent
 // to Supabase after every step, so drop-off is measurable and a reload resumes.
 
-import { QUESTIONS, PARTS, CONCEPT, UI, LOOK, endsSurvey } from './questions.js';
+import { QUESTIONS, PARTS, CONCEPT, UI, LOOK, SHARED, endsSurvey } from './questions.js';
 import { ICONS, BIRD_LEVEL, FORMATION } from './icons.js';
 import { SUPABASE_URL, SUPABASE_KEY, SURVEY_ID } from './config.js';
 
@@ -43,7 +43,7 @@ function fresh(lang) {
     at: -1, // -1 is the welcome screen, otherwise an index into QUESTIONS
     reached: 0, // furthest question shown, 1-based
     done: false, // the five core answers are in
-    out: false, // finished early: doesn't live with flatmates
+    out: false, // finished early: doesn't share a home
     bonus: false, // answering the optional bonus round
     bonusDone: false,
   };
@@ -258,7 +258,7 @@ async function finish() {
       state.bonusDone = true;
     } else {
       state.done = true;
-      state.out = Boolean(state.answers.living && state.answers.living !== 'flatmates');
+      state.out = Boolean(state.answers.living && !SHARED.includes(state.answers.living));
     }
     busy = false;
     save();

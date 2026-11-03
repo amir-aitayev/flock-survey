@@ -21,7 +21,7 @@ const YES = { v: 'yes', en: 'Yes', it: 'Sì' };
 const NO = { v: 'no', en: 'No', it: 'No' };
 
 export const QUESTIONS = [
-  // Core 1 · screener: anyone not living with flatmates finishes here
+  // Core 1 · screener: anyone who doesn't share a home finishes here
   {
     id: 'you', part: 'you', type: 'combo',
     title: { en: 'Which city do you live in?', it: 'In che città vivi?' },
@@ -187,9 +187,11 @@ export const LOOK = {
   last_story: ['chat', 'chat'],
 };
 
-// Anyone who doesn't live with flatmates finishes after the first screen.
+// Flatmates and student-residence students share kitchens, machines and
+// bills; anyone else finishes after the first screen.
+export const SHARED = ['flatmates', 'residence'];
 export function endsSurvey(q, answers) {
-  return q.id === 'you' && answers.living && answers.living !== 'flatmates';
+  return q.id === 'you' && answers.living && !SHARED.includes(answers.living);
 }
 
 // The tiles shown above the price question
